@@ -17,7 +17,9 @@ export enum MemoryMap {
 
 export class SystemInterface implements MMIODevice {
     
+    // code in rom
     private rom: ROMDevice;
+    // vars in ram
     private ram: RAMDevice;
     
     constructor (rom: ROMDevice, ram: RAMDevice) {

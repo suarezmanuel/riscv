@@ -4,7 +4,7 @@ import { PipelineStage } from "./pipeline-stage";
 
 export interface InstructionFetchParams {
     bus: SystemInterface;
-    // function that returns a boolean
+    // returns if not active
     shouldStall: () => boolean;
 }
 
@@ -16,7 +16,6 @@ export class InstructionFetch extends PipelineStage {
     private instruction = new Register32(0);
     private instructionNext = new Register32(0);
 
-    // ?
     private bus: InstructionFetchParams['bus'];
     private shouldStall: InstructionFetchParams['shouldStall'];
 
@@ -25,10 +24,6 @@ export class InstructionFetch extends PipelineStage {
         this.bus = params.bus;
         this.shouldStall = params.shouldStall;
     }
-
-    readyToSend () { return true; }
-
-    readyToReceive () { return true; }
 
     // will run computes and then latches
     compute () { 
@@ -46,5 +41,5 @@ export class InstructionFetch extends PipelineStage {
         this.pc.value = this.pcNext.value;
     }
 
-    getInstructionOut () { return this.instruction; } 
+    getInstructionOut () { return this.instruction.value; } 
 }

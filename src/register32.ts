@@ -12,6 +12,8 @@ export class Register32 {
     set value (v: number) {
         if (v < 0) {
             this._value = (~(-v) + 1);
+        } else {
+            this._value = v;
         }
     }
 }
