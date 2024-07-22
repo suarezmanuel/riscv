@@ -2,22 +2,10 @@ import { Register32 } from "../register32";
 import { PipelineStage } from "./pipeline-stage";
 
 export interface DecodeParams {
-    getInstructionIn: () => number;
     // returns if not active
     shouldStall: () => boolean;
+    getInstructionIn: () => number;
     regFile: Array<Register32>; 
-}
-
-export type DecodedValues = {
-    instruction: number;
-    opcode: number;
-    rd: number;
-    funct3: number;
-    rs1: number;
-    rs2: number;
-    imm11_0: number;
-    funct7: number;
-    shamt: number;
 }
 
 export class Decode extends PipelineStage {
@@ -60,14 +48,16 @@ export class Decode extends PipelineStage {
     compute () { 
 
         if (!this.shouldStall()) {
+            
             this.instructionNext = this.getInstructionIn();
             // get first 7 bits
             this.opcodeNext = this.instructionNext & 0x7f;
             // dest reg
             this.rdNext = (this.instructionNext >> 7) & 0x1f;
+            // helps decide operation
             this.funct3Next = (this.instructionNext >> 12) & 0x07;
             // logical right shift
-            this.imm11_0Next = (this.instructionNext >>> 20) & 0x7ff;
+            this.imm11_0Next = (this.instructionNext >>> 20) & 0xfff;
             this.funct7Next = (this.instructionNext >>> 25) & 0x7f;
             const rs1Address = (this.instructionNext >> 15) & 0x1f;
             const rs2Address = (this.instructionNext >> 20) & 0x1f;
@@ -91,7 +81,7 @@ export class Decode extends PipelineStage {
         this.shamt       = this.shamtNext;
     }
 
-    getDecodedValuesOut(): DecodedValues {
+    getDecodedValuesOut() {
 
         return {
             instruction: this.instruction,

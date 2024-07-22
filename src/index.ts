@@ -1,10 +1,12 @@
 import { Execute } from "./pipeline/execute";
-import { Decode } from "./pipeline/instruction-decode";
+import { Decode } from "./pipeline/decode";
 import { InstructionFetch } from "./pipeline/instruction-fetch";
+import { MemoryAccess } from "./pipeline/memory-access";
 import { Register32 } from "./register32";
 import { SystemInterface } from "./system-interface";
 import { RAMDevice } from "./system-interface/ram";
 import { ROMDevice } from "./system-interface/rom";
+import { WriteBack } from "./pipeline/write-back";
 
 enum State {
     InstructionFetch,
@@ -33,25 +35,41 @@ class RVI32System {
 
     DE = new Decode ({
         shouldStall: () => this.state !== State.Decode,
-        getInstructionIn: this.IF.getInstructionOut.bind(this.IF),
+        getInstructionIn: () => this.IF.getInstructionOut(),
         regFile: this.regFile
     });
 
     EX = new Execute ({
         shouldStall: () => this.state !== State.Execute,
-        getDecodedValuesIn: this.DE.getDecodedValuesOut.bind(this.DE)
+        getDecodedValuesIn: () => this.DE.getDecodedValuesOut()
     });
+
+    MEM = new MemoryAccess ({
+        shouldStall: () => this.state !== State.MemoryAccess,
+        getExecutionValuesIn: () => this.EX.getExecutionValuesOut()
+    })
+
+    WB = new WriteBack ({
+        shouldStall: () => this.state !== State.WriteBack,
+        getMemoryAccessValuesIn: () => this.MEM.getMemoryAccessValuesOut(),
+        regFile: this.regFile,
+    })
 
     compute () {
         this.IF.compute();
         this.DE.compute();
         this.EX.compute();
+        this.MEM.compute();
+        this.WB.compute();
     }
 
     latchNext () {
         this.IF.latchNext();
         this.DE.latchNext();
         this.EX.latchNext();
+        this.MEM.latchNext();
+        this.WB.latchNext();
+        this.regFile.forEach(r => r.latchNext());
     }
 
     cycle () {
@@ -62,7 +80,9 @@ class RVI32System {
         switch (this.state) {
             case State.InstructionFetch: { this.state = State.Decode; break; }
             case State.Decode:           { this.state = State.Execute; break; }
-            case State.Execute:          { this.state = State.InstructionFetch; break; }
+            case State.Execute:          { this.state = State.MemoryAccess; break; }
+            case State.MemoryAccess:     { this.state = State.WriteBack; break; }
+            case State.WriteBack:      { this.state = State.InstructionFetch; break; }
         }
     }
 }
@@ -77,9 +97,7 @@ rv.regFile[1].value = 0x01020304;
 rv.regFile[2].value = 0x02030405;
 
 rv.rom.load(new Uint32Array ([
-    0b000000000001_00001_000_00011_0010011,  // ADDI 1, r1, r3
-    0b0000000_00001_00010_000_00100_0110011, // ADD r1, r2, r4
-    0b0100000_00001_00010_000_00100_0110011, // SUB r1, r2, r4
+    0b111111111111_00001_000_00011_0010011,  // ADDI 1, r1, r3
 ]));
 
 while (true) {
